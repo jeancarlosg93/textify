@@ -209,13 +209,13 @@ Panel {
       items.push({ kind: "clearResult", item: clearResultAction })
     }
     if (root.history.length > 0) {
-      if (root.history.length > root.visibleHistoryCount)
-        items.push({ kind: "toggleHistory", item: toggleHistoryButton })
+      items.push({ kind: "clearHistory", item: clearHistoryButton })
       var visibleCount = root.historyExpanded ? root.history.length : Math.min(root.history.length, root.visibleHistoryCount)
       for (var i = 0; i < visibleCount; i++) {
         items.push({ kind: "history", index: i, item: historyRepeater.itemAt(i) })
       }
-      items.push({ kind: "clearHistory", item: clearHistoryButton })
+      if (root.history.length > root.visibleHistoryCount)
+        items.push({ kind: "toggleHistory", item: toggleHistoryButton })
     }
     return items
   }
@@ -652,16 +652,19 @@ Panel {
                 text: "Textify"
                 color: root.ink
                 font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                font.pixelSize: Style.font.heading
-                font.weight: Font.Medium
+                font.pixelSize: Style.font.title
+                font.bold: true
+                elide: Text.ElideRight
               }
 
               Text {
                 width: parent.width
-                text: "Private OCR for anything on screen"
+                text: "PRIVATE OCR"
                 color: root.secondaryInk
                 font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                font.pixelSize: Style.font.bodySmall
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                font.letterSpacing: 1.2
                 elide: Text.ElideRight
               }
             }
@@ -905,7 +908,8 @@ Panel {
             readonly property real fixedContentHeight: hero.height + captureSection.implicitHeight + statusRow.implicitHeight
               + (resultSection.visible ? resultSection.implicitHeight : 0) + footerText.implicitHeight
               + contentColumn.spacing * (resultSection.visible ? 5 : 4)
-              + historyHeader.height + clearHistoryButton.height + historySection.spacing * 2
+              + historyHeader.height + historySection.spacing
+              + (toggleHistoryButton.visible ? toggleHistoryButton.height + historySection.spacing : 0)
             readonly property real minimumPanelHeight: fixedContentHeight + firstRowsHeight + panel.verticalContentInset
             readonly property real expandedRowsHeight: Math.max(firstRowsHeight,
               panel.screenH * 0.75 - panel.verticalContentInset - fixedContentHeight)
@@ -913,11 +917,11 @@ Panel {
             Row {
               id: historyHeader
               width: parent.width
-              height: Style.space(30)
+              height: clearHistoryButton.height
               spacing: Style.space(8)
 
               Text {
-                width: parent.width - (toggleHistoryButton.visible ? toggleHistoryButton.width + parent.spacing : 0)
+                width: parent.width - clearHistoryButton.width - parent.spacing
                 anchors.verticalCenter: parent.verticalCenter
                 text: "History (" + root.history.length + ")"
                 color: root.ink
@@ -927,21 +931,20 @@ Panel {
               }
 
               Button {
-                id: toggleHistoryButton
-                visible: root.history.length > root.visibleHistoryCount
+                id: clearHistoryButton
                 width: Style.space(128)
                 height: Style.space(30)
                 Accessible.role: Accessible.Button
-                Accessible.name: root.historyExpanded ? "Show less history" : "Show more history"
-                text: root.historyExpanded ? "Show less" : "Show more"
-                tooltipText: root.historyExpanded ? "Show the four newest captures" : "Show all saved captures"
+                Accessible.name: "Clear history"
+                text: "Clear history"
+                tooltipText: "Remove all saved captures"
                 bordered: true
                 foreground: root.ink
                 accent: root.ink
-                hasCursor: root.cursorIs("toggleHistory")
-                onClicked: root.toggleHistory()
+                hasCursor: root.cursorIs("clearHistory")
+                onClicked: root.clearHistory()
                 onHovered: function(isHovered) {
-                  if (isHovered) root.setCursorTo("toggleHistory")
+                  if (isHovered) root.setCursorTo("clearHistory")
                 }
               }
             }
@@ -1040,21 +1043,22 @@ Panel {
             }
 
             Button {
-              id: clearHistoryButton
+              id: toggleHistoryButton
+              visible: root.history.length > root.visibleHistoryCount
               x: parent.width - width
               width: Style.space(128)
               height: Style.space(30)
               Accessible.role: Accessible.Button
-              Accessible.name: "Clear history"
-              text: "Clear history"
-              tooltipText: "Remove all saved captures"
+              Accessible.name: root.historyExpanded ? "Show less history" : "Show more history"
+              text: root.historyExpanded ? "Show less" : "Show more"
+              tooltipText: root.historyExpanded ? "Show the four newest captures" : "Show all saved captures"
               bordered: true
               foreground: root.ink
               accent: root.ink
-              hasCursor: root.cursorIs("clearHistory")
-              onClicked: root.clearHistory()
+              hasCursor: root.cursorIs("toggleHistory")
+              onClicked: root.toggleHistory()
               onHovered: function(isHovered) {
-                if (isHovered) root.setCursorTo("clearHistory")
+                if (isHovered) root.setCursorTo("toggleHistory")
               }
             }
           }
