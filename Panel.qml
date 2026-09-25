@@ -116,9 +116,7 @@ Panel {
   function languageOptions() {
     var options = [{
       value: "",
-      label: root.detectedLang === ""
-        ? "Auto detect"
-        : "Auto · " + root.detectedLang.toUpperCase()
+      label: "Auto"
     }]
     for (var i = 0; i < root.installedLangs.length; i++) {
       var code = String(root.installedLangs[i])
@@ -675,6 +673,9 @@ Panel {
               anchors.verticalCenter: parent.verticalCenter
               Accessible.role: Accessible.Button
               Accessible.name: "OCR language"
+              Accessible.description: root.activeLang === ""
+                ? "Auto uses the active keyboard layout" + (root.detectedLang === "" ? "" : "; currently " + root.languageName(root.detectedLang))
+                : "Uses " + root.languageName(root.activeLang)
               label: "Language"
               value: root.activeLang
               options: root.languageOptions()
