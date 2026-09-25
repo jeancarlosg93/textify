@@ -25,6 +25,7 @@ Panel {
   property bool lastCopied: false
   property double lastConfidence: 0
   property var history: []
+  property bool historyExpanded: false
   readonly property int maxHistory: 12
   property string activeLang: "" // "" = auto-detect from keyboard layout
   property string detectedLayout: ""
@@ -161,6 +162,12 @@ Panel {
 
   function clearHistory() {
     root.history = []
+    root.historyExpanded = false
+    root.normalizeCursor()
+  }
+
+  function toggleHistory() {
+    root.historyExpanded = !root.historyExpanded
     root.normalizeCursor()
   }
 
@@ -168,6 +175,7 @@ Panel {
     var h = root.history.slice()
     h.splice(index, 1)
     root.history = h
+    if (h.length === 0) root.historyExpanded = false
     root.normalizeCursor()
   }
 
@@ -194,11 +202,15 @@ Panel {
       items.push({ kind: "copy", item: copyButton })
       items.push({ kind: "clearResult", item: clearResultAction })
     }
-    for (var i = 0; i < root.history.length; i++) {
-      items.push({ kind: "history", index: i, item: historyRepeater.itemAt(i) })
+    if (root.history.length > 0) {
+      items.push({ kind: "toggleHistory", item: toggleHistoryButton })
+      if (root.historyExpanded) {
+        for (var i = 0; i < root.history.length; i++) {
+          items.push({ kind: "history", index: i, item: historyRepeater.itemAt(i) })
+        }
+        items.push({ kind: "clearHistory", item: clearHistoryButton })
+      }
     }
-    if (root.history.length > 0)
-      items.push({ kind: "clearHistory", item: clearHistoryButton })
     return items
   }
 
@@ -254,6 +266,7 @@ Panel {
     else if (entry.kind === "language") languageSelect.toggle()
     else if (entry.kind === "copy") root.copyText(root.lastText)
     else if (entry.kind === "clearResult") root.clearResult()
+    else if (entry.kind === "toggleHistory") root.toggleHistory()
     else if (entry.kind === "history") root.copyText(root.history[entry.index].text)
     else if (entry.kind === "clearHistory") root.clearHistory()
   }
@@ -261,6 +274,7 @@ Panel {
   onOpenedChanged: {
     if (root.opened) {
       root.cursorIndex = 0
+      root.historyExpanded = false
       contentFlick.contentY = 0
       // Refresh detected layout + installed languages.
       langProc.command = [root.binPath, "lang"]
@@ -874,12 +888,13 @@ Panel {
 
             Row {
               width: parent.width
-              height: clearHistoryButton.height
+              height: toggleHistoryButton.height
+              spacing: Style.space(8)
 
               Text {
-                width: parent.width - clearHistoryButton.width - parent.spacing
+                width: parent.width - toggleHistoryButton.width - parent.spacing
                 anchors.verticalCenter: parent.verticalCenter
-                text: "History"
+                text: "History (" + root.history.length + ")"
                 color: root.ink
                 font.family: root.bar ? root.bar.fontFamily : Style.font.family
                 font.pixelSize: Style.font.title
@@ -887,8 +902,113 @@ Panel {
               }
 
               Button {
+                id: toggleHistoryButton
+                width: Style.space(128)
+                height: Style.space(30)
+                Accessible.role: Accessible.Button
+                Accessible.name: root.historyExpanded ? "Hide history" : "Show history"
+                text: root.historyExpanded ? "Hide history" : "Show history"
+                tooltipText: root.historyExpanded ? "Collapse saved captures" : "Expand saved captures"
+                bordered: true
+                foreground: root.ink
+                accent: root.ink
+                hasCursor: root.cursorIs("toggleHistory")
+                onClicked: root.toggleHistory()
+                onHovered: function(isHovered) {
+                  if (isHovered) root.setCursorTo("toggleHistory")
+                }
+              }
+            }
+
+            Column {
+              width: parent.width
+              visible: root.historyExpanded
+              spacing: Style.space(8)
+
+              Column {
+                id: historyColumn
+                width: parent.width
+                spacing: Style.space(4)
+
+                Repeater {
+                  id: historyRepeater
+                  model: root.history
+
+                  delegate: CursorSurface {
+                    id: historyRow
+                    required property var modelData
+                    required property int index
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Copy capture: " + root.boundedText(String(modelData.text || "").replace(/\s+/g, " ").trim(), root.maxFieldChars)
+                    Accessible.description: "Copy this saved capture"
+                    width: historyColumn.width
+                    height: Style.space(52)
+                    foreground: root.ink
+                    accent: root.ink
+                    hasCursor: root.cursorIs("history", index)
+
+                    HoverHandler {
+                      cursorShape: Qt.PointingHandCursor
+                      onHoveredChanged: {
+                        if (hovered) root.setCursorTo("history", index)
+                      }
+                    }
+
+                    Column {
+                      anchors.left: parent.left
+                      anchors.leftMargin: Style.space(12)
+                      anchors.right: removeHistoryAction.left
+                      anchors.rightMargin: Style.space(8)
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: Style.space(2)
+
+                      Text {
+                        width: parent.width
+                        text: {
+                          var oneLine = String(modelData.text || "").replace(/\s+/g, " ").trim()
+                          return oneLine.length > 58 ? oneLine.slice(0, 58) + "..." : oneLine
+                        }
+                        textFormat: Text.PlainText
+                        color: root.ink
+                        font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                        font.pixelSize: Style.font.bodySmall
+                        elide: Text.ElideRight
+                      }
+
+                      Text {
+                        width: parent.width
+                        text: (modelData.lang ? root.languageName(modelData.lang) : "Auto") +
+                          " · " + modelData.when
+                        color: root.quietInk
+                        font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                        font.pixelSize: Style.font.caption
+                        elide: Text.ElideRight
+                      }
+                    }
+
+                    PanelActionButton {
+                      id: removeHistoryAction
+                      anchors.right: parent.right
+                      anchors.rightMargin: Style.space(8)
+                      anchors.verticalCenter: parent.verticalCenter
+                      size: Style.space(30)
+                      iconText: "󰅖"
+                      tooltipText: "Remove this capture"
+                      foreground: root.ink
+                      onClicked: root.removeHistory(index)
+                    }
+
+                    TapHandler {
+                      onTapped: root.copyText(modelData.text)
+                    }
+                  }
+                }
+              }
+
+              Button {
                 id: clearHistoryButton
-                width: Style.space(96)
+                x: parent.width - width
+                width: Style.space(128)
                 height: Style.space(30)
                 Accessible.role: Accessible.Button
                 Accessible.name: "Clear history"
@@ -901,86 +1021,6 @@ Panel {
                 onClicked: root.clearHistory()
                 onHovered: function(isHovered) {
                   if (isHovered) root.setCursorTo("clearHistory")
-                }
-              }
-            }
-
-            Column {
-              id: historyColumn
-              width: parent.width
-              spacing: Style.space(4)
-
-              Repeater {
-                id: historyRepeater
-                model: root.history
-
-                delegate: CursorSurface {
-                  id: historyRow
-                  required property var modelData
-                  required property int index
-                  Accessible.role: Accessible.Button
-                  Accessible.name: "Copy capture: " + root.boundedText(String(modelData.text || "").replace(/\s+/g, " ").trim(), root.maxFieldChars)
-                  Accessible.description: "Copy this saved capture"
-                  width: historyColumn.width
-                  height: Style.space(52)
-                  foreground: root.ink
-                  accent: root.ink
-                  hasCursor: root.cursorIs("history", index)
-
-                  HoverHandler {
-                    cursorShape: Qt.PointingHandCursor
-                    onHoveredChanged: {
-                      if (hovered) root.setCursorTo("history", index)
-                    }
-                  }
-
-                  Column {
-                    anchors.left: parent.left
-                    anchors.leftMargin: Style.space(12)
-                    anchors.right: removeHistoryAction.left
-                    anchors.rightMargin: Style.space(8)
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Style.space(2)
-
-                    Text {
-                      width: parent.width
-                      text: {
-                        var oneLine = String(modelData.text || "").replace(/\s+/g, " ").trim()
-                        return oneLine.length > 58 ? oneLine.slice(0, 58) + "..." : oneLine
-                      }
-                      textFormat: Text.PlainText
-                      color: root.ink
-                      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                      font.pixelSize: Style.font.bodySmall
-                      elide: Text.ElideRight
-                    }
-
-                    Text {
-                      width: parent.width
-                      text: (modelData.lang ? root.languageName(modelData.lang) : "Auto") +
-                        " · " + modelData.when
-                      color: root.quietInk
-                      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                      font.pixelSize: Style.font.caption
-                      elide: Text.ElideRight
-                    }
-                  }
-
-                  PanelActionButton {
-                    id: removeHistoryAction
-                    anchors.right: parent.right
-                    anchors.rightMargin: Style.space(8)
-                    anchors.verticalCenter: parent.verticalCenter
-                    size: Style.space(30)
-                    iconText: "󰅖"
-                    tooltipText: "Remove this capture"
-                    foreground: root.ink
-                    onClicked: root.removeHistory(index)
-                  }
-
-                  TapHandler {
-                    onTapped: root.copyText(modelData.text)
-                  }
                 }
               }
             }
