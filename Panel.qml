@@ -178,7 +178,7 @@ Panel {
     var h = root.history.slice()
     h.splice(index, 1)
     root.history = h
-    if (h.length <= root.visibleHistoryCount) {
+    if (h.length <= historySection.defaultRows) {
       root.historyExpanded = false
       historyFlick.contentY = 0
     }
@@ -210,11 +210,11 @@ Panel {
     }
     if (root.history.length > 0) {
       items.push({ kind: "clearHistory", item: clearHistoryButton })
-      var visibleCount = root.historyExpanded ? root.history.length : Math.min(root.history.length, root.visibleHistoryCount)
+      var visibleCount = root.historyExpanded ? root.history.length : Math.min(root.history.length, historySection.defaultRows)
       for (var i = 0; i < visibleCount; i++) {
         items.push({ kind: "history", index: i, item: historyRepeater.itemAt(i) })
       }
-      if (root.history.length > root.visibleHistoryCount)
+      if (root.history.length > historySection.defaultRows)
         items.push({ kind: "toggleHistory", item: toggleHistoryButton })
     }
     return items
@@ -903,12 +903,25 @@ Panel {
             visible: root.history.length > 0
             width: parent.width
             spacing: Style.space(8)
-            readonly property real firstRowsHeight: Math.min(root.history.length, root.visibleHistoryCount) * Style.space(52)
-              + Math.max(0, Math.min(root.history.length, root.visibleHistoryCount) - 1) * Style.space(4)
-            readonly property real fixedContentHeight: hero.height + captureSection.implicitHeight + statusRow.implicitHeight
+            readonly property real baseContentHeight: hero.height + captureSection.implicitHeight + statusRow.implicitHeight
               + (resultSection.visible ? resultSection.implicitHeight : 0) + footerText.implicitHeight
               + contentColumn.spacing * (resultSection.visible ? 5 : 4)
               + historyHeader.height + historySection.spacing
+            readonly property int defaultRows: {
+              if (root.history.length === 0) return 0
+              if (panel.availableCardHeight <= 0) return Math.min(root.history.length, root.visibleHistoryCount)
+              var rowHeight = Style.space(52)
+              var rowGap = Style.space(4)
+              var available = panel.availableCardHeight - panel.verticalContentInset - baseContentHeight
+              var withoutToggle = Math.max(1, Math.floor((available + rowGap) / (rowHeight + rowGap)))
+              if (root.history.length <= root.visibleHistoryCount && root.history.length <= withoutToggle)
+                return root.history.length
+              var withToggle = Math.max(1, Math.floor((available - toggleHistoryButton.height - historySection.spacing + rowGap) / (rowHeight + rowGap)))
+              return Math.min(root.history.length, root.visibleHistoryCount, withToggle)
+            }
+            readonly property real firstRowsHeight: defaultRows * Style.space(52)
+              + Math.max(0, defaultRows - 1) * Style.space(4)
+            readonly property real fixedContentHeight: baseContentHeight
               + (toggleHistoryButton.visible ? toggleHistoryButton.height + historySection.spacing : 0)
             readonly property real minimumPanelHeight: fixedContentHeight + firstRowsHeight + panel.verticalContentInset
             readonly property real expandedRowsHeight: Math.max(firstRowsHeight,
@@ -1044,14 +1057,14 @@ Panel {
 
             Button {
               id: toggleHistoryButton
-              visible: root.history.length > root.visibleHistoryCount
+              visible: root.history.length > historySection.defaultRows
               x: parent.width - width
               width: Style.space(128)
               height: Style.space(30)
               Accessible.role: Accessible.Button
               Accessible.name: root.historyExpanded ? "Show less history" : "Show more history"
               text: root.historyExpanded ? "Show less" : "Show more"
-              tooltipText: root.historyExpanded ? "Show the four newest captures" : "Show all saved captures"
+              tooltipText: root.historyExpanded ? "Show the newest captures" : "Show all saved captures"
               bordered: true
               foreground: root.ink
               accent: root.ink

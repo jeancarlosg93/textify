@@ -78,7 +78,7 @@ Click the OCR icon in the bar:
 | Select region | Drag a box over text to extract it |
 | Full screen | Extract text from the whole screen |
 | Copy again | Re-copy the last extraction |
-| Show more / Show less | Show four recent captures by default; expand older history when available |
+| Show more / Show less | Show up to four recent captures by default, depending on screen height; expand older history when available |
 | History row | Click to copy that extraction again |
 | Esc | Close the panel |
 
