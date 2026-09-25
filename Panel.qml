@@ -134,7 +134,8 @@ Panel {
     var args = [root.binPath, mode, "--json"]
     if (root.activeLang !== "") args.push("--lang", root.activeLang)
     ocrProc.command = args
-    ocrProc.running = true
+    root.close()
+    captureDelay.restart()
   }
 
   function copyText(text) {
@@ -379,6 +380,7 @@ Panel {
     onExited: function(exitCode) {
       ocrTimeout.stop()
       root.busy = false
+      root.open()
       if (ocrProc.timedOut) {
         root.setStatus("OCR timed out · try a smaller capture", "error")
         return
@@ -431,6 +433,14 @@ Panel {
         })
       }
     }
+  }
+
+  Timer {
+    id: captureDelay
+    // KeyboardPanel fades out over 140 ms; wait for it to leave the capture.
+    interval: 200
+    repeat: false
+    onTriggered: ocrProc.running = true
   }
 
   Timer {

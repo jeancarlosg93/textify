@@ -75,8 +75,8 @@ Click the OCR icon in the bar:
 
 | Control | Action |
 | --- | --- |
-| Select region | Drag a box over text to extract it |
-| Full screen | Extract text from the whole screen |
+| Select region | The panel closes, then you can drag a box over text; it reopens with the result |
+| Full screen | The panel closes before reading the screen, then reopens with the result |
 | Language: Auto | Use the active keyboard layout to choose an installed OCR language; the result shows which language was used |
 | Copy again | Re-copy the last extraction |
 | Show more / Show less | Show up to four recent captures by default, depending on screen height; expand older history when available |
